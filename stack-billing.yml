@@ -1,0 +1,107 @@
+version: '3.1'
+
+services:
+
+  #Billing databases service
+  postgres_db_prod:
+    container_name: postgres_prod
+    image: postgres:latest
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - ./dbfiles:/docker-entrypoint-initdb.d
+      - /var/lib/postgres_data_prod:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qwerty
+      POSTGRES_DB: postgres
+
+  postgres_db_uat:
+    container_name: postgres_uat
+    image: postgres:latest
+    restart: always
+    ports:
+      - 4432:5432
+    volumes:
+      - ./dbfiles:/docker-entrypoint-initdb.d
+      - /var/lib/postgres_data_uat:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qwerty
+      POSTGRES_DB: postgres
+
+  #adminer
+  adminer:
+    container_name: adminer
+    image: adminer
+    restart: always
+    depends_on: 
+      - postgres_db_prod
+      - postgres_db_uat
+    ports:
+       - 9090:8080
+
+  #Billing app backend service
+  billingapp-back-prod:
+    build:
+      context: ./java
+      args:
+        - JAR_FILE=billing-0.0.3-SNAPSHOT.jar
+    container_name: billingApp-back-prod   
+    environment:
+       - JAVA_OPTS=
+         -Xms256M 
+         -Xmx256M         
+    depends_on:     
+      - postgres_db_prod
+    ports:
+      - 8080:8080 
+    
+  billingapp-back-uat:
+    build:
+      context: ./java
+      args:
+        - JAR_FILE=billing-0.0.2-SNAPSHOT.jar
+    container_name: billingApp-back-uat 
+    environment:
+       - JAVA_OPTS=
+         -Xms256M 
+         -Xmx256M         
+    depends_on:     
+      - postgres_db_uat
+    ports:
+      - 7080:7080 
+
+  #Billing app frontend service
+  billingapp-front-prod:
+    build:
+      context: ./angular 
+    deploy:   
+        resources:
+           limits: 
+              cpus: "0.15"
+              memory: 250M
+           reservations:
+              cpus: "0.1"
+              memory: 128M
+    depends_on:     
+      - billingapp-back-prod
+    ports:
+      - 80:80 
+
+  billingapp-front-uat:
+    build:
+      context: ./angular 
+    deploy:   
+        resources:
+           limits: 
+              cpus: "0.15"
+              memory: 250M
+           reservations:
+              cpus: "0.1"
+              memory: 128M
+    depends_on:     
+      - billingapp-back-uat
+    ports:
+      - 81:81
