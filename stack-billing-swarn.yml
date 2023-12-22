@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres_db_prod:
+    image: postgres:latest
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - ./dbfiles:/docker-entrypoint-initdb.d
+      - /var/lib/postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qwerty
+      POSTGRES_DB: postgres    
+  adminer:
+    image: adminer
+    restart: always
+    depends_on: 
+      - postgres_db_prod
+    ports:
+       - 9090:8080
+
+
+  billingapp-back:
+    build:
+      context: ./java
+      args:
+        - JAR_FILE=billing-0.0.3-SNAPSHOT.jar
+    image: billingapp_v2_billingapp-back:latest
+    environment:
+       - JAVA_OPTS=
+         -Xms256M 
+         -Xmx256M         
+    depends_on:     
+      - postgres_db_prod
+    ports:
+      - 8080:8080 
+
+
+  billingapp-front:
+    build:
+      context: ./angular
+    image: billingapp_v2_billingapp-front 
+    deploy: 
+        replicas: 3
+        resources:
+           limits: 
+              cpus: "0.15"
+              memory: 250M
+           reservations:
+              cpus: "0.1"
+              memory: 128M
+    depends_on:     
+      - billingapp-back
+    ports:
+      - 81-86:80 
